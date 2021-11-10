@@ -3,8 +3,9 @@ Q-Learning based method
 """
 
 import random, time
+import numpy as np
 from baselines import logger
-
+from baselines.common.vec_env import VecEnv
 
 def get_qmax(Q,s,actions,q_init):
     if s not in Q:
@@ -26,7 +27,8 @@ def learn(env,
           gamma=0.9,
           q_init=2.0,
           use_crm=False,
-          use_rs=False):
+          use_rs=False,
+          model=None):
     """Train a tabular q-learning model.
 
     Parameters
@@ -60,7 +62,7 @@ def learn(env,
     reward_total = 0
     step = 0
     num_episodes = 0
-    Q = {}
+    Q = {} if model is None else model
     actions = list(range(env.action_space.n))
 
     while step < total_timesteps:
@@ -104,3 +106,37 @@ def learn(env,
                 num_episodes += 1
                 break
             s = sn
+
+    return Q
+
+def get_policy_counterexamples(model, env, num_iters, is_tabular=True):
+    logger.log("Running trained model to collect counterexamples")
+    counterexamples = []
+
+    dones = np.zeros((1,))
+
+    for sample in range(num_iters):
+        done_any = False
+        episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
+        trace = []
+        state = tuple(env.reset())
+        print("on iteration number: {}".format(sample))
+        while not done_any:
+            positive_example = False
+            actions = list(range(env.action_space.n))
+            q_init = 2.0 ##TODO: un-hardcode this, if need be.
+            action = get_best_action(model,state,actions,q_init)
+
+            trace.append((state, action))
+            obs, rew, done, _ = env.step(action)
+            state = tuple(obs)
+            episode_rew += rew
+            done_any = done.any() if isinstance(done, np.ndarray) else done
+            if done_any:
+                for i in np.nonzero(done)[0]:
+                    if episode_rew[i] > 0:
+                        # positive example
+                        positive_example = True
+                if not positive_example:
+                    counterexamples.append(trace)
+    return counterexamples

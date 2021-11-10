@@ -119,8 +119,12 @@ def common_arg_parser():
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
     parser.add_argument('--play', default=False, action='store_true')
     # RM-related arguments
+    parser.add_argument("--use_counterexamples", action="store_true", default=False)
     parser.add_argument("--use_rs", help="Use reward shaping", action="store_true", default=False)
     parser.add_argument("--use_crm", help="Use counterfactual experience", action="store_true", default=False)
+    parser.add_argument('--num_mc_checkpoints', help="Number of counterexample-generating checkpoints", type=int, default=5)
+    parser.add_argument('--num_checkpoint_samples', help="Num. samples to generate from policy at each checkpoint", type=int,
+                        default=100)
     parser.add_argument('--gamma', help="Discount factor", type=float, default=0.9)
     parser.add_argument('--rs_gamma', help="Discount factor used for reward shaping", type=float, default=0.9)
     parser.add_argument('--r_min', help="R-min reward used for training option policies in hrm", type=float, default=0.0)

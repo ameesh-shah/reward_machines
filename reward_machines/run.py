@@ -56,6 +56,59 @@ _game_envs['retro'] = {
     'SpaceInvaders-Snes',
 }
 
+def train_with_counterexamples(args, extra_args):
+    env_type, env_id = get_env_type(args)
+    print('env_type: {}'.format(env_type))
+
+    total_timesteps = int(args.num_timesteps)
+    checkpoint_timesteps = int(total_timesteps / args.num_mc_checkpoints)
+    seed = args.seed
+
+    learn = get_learn_function(args.alg)
+    get_policy_counterexamples = get_counterexample_function(args.alg)
+    alg_kwargs = get_learn_function_defaults(args.alg, env_type)
+    alg_kwargs.update(extra_args)
+
+    env = build_env(args)
+    if args.save_video_interval != 0:
+        env = VecVideoRecorder(env, osp.join(logger.get_dir(), "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
+
+    if args.network:
+        alg_kwargs['network'] = args.network
+    else:
+        if alg_kwargs.get('network') is None:
+            alg_kwargs['network'] = get_default_network(env_type)
+
+    # Adding RM-related parameters
+    alg_kwargs['use_rs']   = args.use_rs
+    alg_kwargs['use_crm']  = args.use_crm
+    alg_kwargs['gamma']    = args.gamma
+    print('Training {} on {}:{} with arguments \n{}'.format(args.alg, env_type, env_id, alg_kwargs))
+    model = None
+    for checkpoint_iter in range(args.num_mc_checkpoints):
+        #train the initial model
+        print("Training within CEGIL on iteration {}".format(checkpoint_iter))
+
+        model = learn(
+            env=env,
+            seed=seed,
+            total_timesteps=checkpoint_timesteps,
+            model=model,
+            **alg_kwargs
+        )
+        print("Collecting and checking samples from trained policy...")
+
+        current_counterexamples = get_policy_counterexamples(model, env, args.num_checkpoint_samples)
+        print("completed this step")
+        if len(current_counterexamples) == 0:
+            print("Collected no counterexamples")
+        #breakpoint()
+        #TODO: modify reward machine (create temporary RM) based on collected counterexamples
+
+
+
+    return model, env
+
 
 def train(args, extra_args):
     env_type, env_id = get_env_type(args)
@@ -171,6 +224,9 @@ def get_alg_module(alg, submodule=None):
 def get_learn_function(alg):
     return get_alg_module(alg).learn
 
+def get_counterexample_function(alg):
+    return get_alg_module(alg).get_policy_counterexamples
+
 
 def get_learn_function_defaults(alg, env_type):
     try:
@@ -217,8 +273,10 @@ def main(args):
     else:
         rank = MPI.COMM_WORLD.Get_rank()
         configure_logger(args.log_path, format_strs=[])
-
-    model, env = train(args, extra_args)
+    if args.use_counterexamples:
+        model, env = train_with_counterexamples(args, extra_args)
+    else:
+        model, env = train(args, extra_args)
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
