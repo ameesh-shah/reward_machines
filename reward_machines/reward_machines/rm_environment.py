@@ -66,6 +66,9 @@ class RewardMachineEnv(gym.Wrapper):
         self.current_rm_id = -1
         self.current_rm    = None
 
+        # Store last step of counterexamples
+        self.last_sa_in_cex = set()
+
     def reset(self):
         # Reseting the environment and selecting the next RM tasks
         self.obs = self.env.reset()
@@ -80,6 +83,9 @@ class RewardMachineEnv(gym.Wrapper):
         # executing the action in the environment
         next_obs, original_reward, env_done, info = self.env.step(action)
 
+        # CEGIL: get current state (both environment and rm)
+        current_state = tuple(self.get_observation(self.obs, self.current_rm_id, self.current_u_id, False))
+
         # getting the output of the detectors and saving information for generating counterfactual experiences
         true_props = self.env.get_events()
         self.crm_params = self.obs, action, next_obs, env_done, true_props, info
@@ -92,12 +98,21 @@ class RewardMachineEnv(gym.Wrapper):
         done = rm_done or env_done
         rm_obs = self.get_observation(next_obs, self.current_rm_id, self.current_u_id, done)
 
+        # CEGIL: rm_rew = -1 if the (s,u,a) pair transitions to sink state
+        if (current_state, action) in self.last_sa_in_cex: rm_rew = -1
+
         return rm_obs, rm_rew, done, info
 
     def get_observation(self, next_obs, rm_id, u_id, done):
         rm_feat = self.rm_done_feat if done else self.rm_state_features[(rm_id,u_id)]
         rm_obs = {'features': next_obs,'rm-state': rm_feat}
         return gym.spaces.flatten(self.observation_dict, rm_obs)           
+
+    def modify_rm_with_counterexamples(self, last_sa_pairs):
+        self.last_sa_in_cex.update(last_sa_pairs)
+
+    def restore_rm(self):
+        self.last_sa_in_cex.clear()
 
 
 class RewardMachineWrapper(gym.Wrapper):

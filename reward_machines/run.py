@@ -104,6 +104,12 @@ def train_with_counterexamples(args, extra_args):
             print("Collected no counterexamples")
         #breakpoint()
         #TODO: modify reward machine (create temporary RM) based on collected counterexamples
+        else:
+            # Collect last (s,a) in each counterexample
+            last_sa_pairs = [cex[-1] for cex in current_counterexamples]
+            # Update table for later reward lookup
+            # (env.env.env is RewardMachineEnv)
+            env.env.env.modify_rm_with_counterexamples(last_sa_pairs)
 
 
 
