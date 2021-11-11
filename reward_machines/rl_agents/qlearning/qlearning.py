@@ -120,7 +120,6 @@ def get_policy_counterexamples(model, env, num_iters, is_tabular=True):
         episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
         trace = []
         state = tuple(env.reset())
-        print("on iteration number: {}".format(sample))
         while not done_any:
             positive_example = False
             actions = list(range(env.action_space.n))
@@ -139,4 +138,5 @@ def get_policy_counterexamples(model, env, num_iters, is_tabular=True):
                         positive_example = True
                 if not positive_example:
                     counterexamples.append(trace)
+    logger.log("Counterexample search process completed.")
     return counterexamples

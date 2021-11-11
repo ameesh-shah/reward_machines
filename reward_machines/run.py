@@ -109,10 +109,10 @@ def train_with_counterexamples(args, extra_args):
             last_sa_pairs = [cex[-1] for cex in current_counterexamples]
             # Update table for later reward lookup
             # (env.env.env is RewardMachineEnv)
+            env.env.env.restore_rm()
             env.env.env.modify_rm_with_counterexamples(last_sa_pairs)
 
-
-
+    env.env.env.restore_rm()
     return model, env
 
 
