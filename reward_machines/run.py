@@ -6,6 +6,7 @@ import gym
 from collections import defaultdict
 import tensorflow as tf
 import numpy as np
+import datetime
 
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
@@ -261,7 +262,11 @@ def parse_cmdline_kwargs(args):
 
 def configure_logger(log_path, **kwargs):
     if log_path is not None:
-        logger.configure(log_path)
+        log_dir = 'data'
+        time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        format_strs = ['stdout', 'csv', 'tensorboard']
+        log_path = osp.join(log_dir, f'{log_path}_{time}')
+        logger.configure(log_path, format_strs=format_strs)
     else:
         logger.configure(**kwargs)
 
